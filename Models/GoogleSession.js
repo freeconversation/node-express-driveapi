@@ -120,12 +120,12 @@ class GoogleSession {
         }
     }
     async listDriveFiles(query = {}) {
-        await this.checkOrConnectToDrive()()
+        await this.checkOrConnectToDrive()
         const res = await this._drive.files.list(query)
         return res.data.files
     }
     async exportFileToPdfById(fileId, fileName) {
-        await this.checkOrConnectToDrive()()
+        await this.checkOrConnectToDrive()
         const dest = createWriteStream(`${this._exportsPath}/${fileName}`)
         this._drive.files.export({
             fileId: fileId,
@@ -143,7 +143,7 @@ class GoogleSession {
         })
     }
     async downloadFileById(fileId, fileName) {
-        await this.checkOrConnectToDrive()()
+        await this.checkOrConnectToDrive()
         const dest = createWriteStream(`${this._downloadsPath}/${fileName}`)
 
         this._drive.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'stream' },
