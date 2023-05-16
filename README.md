@@ -106,7 +106,7 @@ You should provide the element id on the URL and the file name that will have on
 
 >Note: The downloads will be stored in a `/exports` folder inside the assets path configured in `.env.ASSETS`, default is `/assets`
 
-### Changes Control
+### Changes Control
 
 To check the changes and its details on drive unit you can use the following endpoint:
 ~~~~
