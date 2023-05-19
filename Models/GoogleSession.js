@@ -7,36 +7,46 @@ import process from 'process'
 const rootPath = process.cwd()
 
 class GoogleSession {
+    #scope  
+    #secretPath  
+    #assetsPath  
+    #tokenPath  
+    #credentialsPath  
+    #downloadsPath  
+    #exportsPath  
+    #client  
+    #drive  
+    #driveActivity      
     constructor() {
-        this._scope = process.env.GOOGLE_SCOPES.split(',')
-        this._secretPath = `${rootPath}${process.env.SECRET_PATH}`
-        this._assetsPath = `${rootPath}${process.env.ASSETS}`
-        this._tokenPath = `${this._secretPath}/token.json`
-        this._credentialsPath = `${this._secretPath}/credentials.json`
-        this._downloadsPath = `${this._assetsPath}/downloads`
-        this._exportsPath = `${this._assetsPath}/exports`
-        this._client = null
-        this._drive = null
-        this._driveActivity = null
-        this.init()
+        this.#scope = process.env.GOOGLE_SCOPES.split(',')
+        this.#secretPath = `${rootPath}${process.env.SECRET_PATH}`
+        this.#assetsPath = `${rootPath}${process.env.ASSETS}`
+        this.#tokenPath = `${this.#secretPath}/token.json`
+        this.#credentialsPath = `${this.#secretPath}/credentials.json`
+        this.#downloadsPath = `${this.#assetsPath}/downloads`
+        this.#exportsPath = `${this.#assetsPath}/exports`
+        this.#client = null
+        this.#drive = null
+        this.#driveActivity = null
+        this.#init()
     }
-    init() {
-        this.createFolderIfNotExist(this._secretPath)
-        this.createFolderIfNotExist(this._exportsPath)
-        this.createFolderIfNotExist(this._downloadsPath)
+    #init() {
+        this.createFolderIfNotExist(this.#secretPath)
+        this.createFolderIfNotExist(this.#exportsPath)
+        this.createFolderIfNotExist(this.#downloadsPath)
 
     }
     get data() {
         const data = {
-            scope: this._scope,
-            tokenPath: this._tokenPath,
-            credentialsPath: this._credentialsPath
+            scope: this.#scope,
+            tokenPath: this.#tokenPath,
+            credentialsPath: this.#credentialsPath
         }
         return data
     }
 
     get scope() {
-        return this._scope
+        return this.#scope
     }
     createFolderIfNotExist(path) {
         if (!existsSync(path)) {
@@ -46,7 +56,7 @@ class GoogleSession {
 
     async loadSavedCredentialsIfExist() {
         try {
-            const content = await fs.readFile(this._tokenPath)
+            const content = await fs.readFile(this.#tokenPath)
             const credentials = JSON.parse(content)
             return google.auth.fromJSON(credentials)
         } catch (e) {
@@ -55,17 +65,17 @@ class GoogleSession {
         }
     }
     async saveCredentials() {
-        const content = await fs.readFile(this._credentialsPath)
+        const content = await fs.readFile(this.#credentialsPath)
         const keys = JSON.parse(content)
         const key = keys.installed || keys.web;
         const payload = JSON.stringify({
-            type: 'authorized_user',
+            type: 'authorized#user',
             client_id: key.client_id,
             client_secret: key.client_secret,
-            refresh_token: this._client.credentials.refresh_token
+            refresh_token: this.#client.credentials.refresh_token
         })
         try {
-            await fs.writeFile(this._tokenPath, payload)
+            await fs.writeFile(this.#tokenPath, payload)
         } catch (e) {
             throw new Error(`Error writing credentials file, err->${e}`)
         }
@@ -73,34 +83,34 @@ class GoogleSession {
     async authorize() {
         let client = await this.loadSavedCredentialsIfExist()
         if (client) {
-            this._client = client
+            this.#client = client
             return true
         }
         client = await authenticate({
-            scopes: this._scope,
-            keyfilePath: this._credentialsPath
+            scopes: this.#scope,
+            keyfilePath: this.#credentialsPath
         })
         if (client.credentials) {
-            this._client = client
+            this.#client = client
             await this.saveCredentials()
         }
         return true
 
     }
     async connectDrive() {
-        if (!this._client) {
+        if (!this.#client) {
             await this.authorize()
         }
-        this._drive = google.drive({ version: 'v3', auth: this._client })
+        this.#drive = google.drive({ version: 'v3', auth: this.#client })
     }
     async connectDriveActivity() {
-        if (!this._client) {
+        if (!this.#client) {
             await this.authorize()
         }
-        this._driveActivity = google.driveactivity({ version: 'v2', auth: this._client })
+        this.#driveActivity = google.driveactivity({ version: 'v2', auth: this.#client })
     }
     async checkOrConnectToDrive() {
-        if (!this._drive) {
+        if (!this.#drive) {
             try {
                 await this.connectDrive()
                 return true
@@ -110,7 +120,7 @@ class GoogleSession {
         }
     }
     async checkOrConnectToDriveActivity() {
-        if (!this._drive) {
+        if (!this.#drive) {
             try {
                 await this.connectDriveActivity()
                 return true
@@ -121,13 +131,13 @@ class GoogleSession {
     }
     async listDriveFiles(query = {}) {
         await this.checkOrConnectToDrive()
-        const res = await this._drive.files.list(query)
+        const res = await this.#drive.files.list(query)
         return res.data.files
     }
     async exportFileToPdfById(fileId, fileName) {
         await this.checkOrConnectToDrive()
-        const dest = createWriteStream(`${this._exportsPath}/${fileName}`)
-        this._drive.files.export({
+        const dest = createWriteStream(`${this.#exportsPath}/${fileName}`)
+        this.#drive.files.export({
             fileId: fileId,
             mimeType: 'application/pdf'
         }, { responseType: 'stream' }, (err, res) => {
@@ -144,9 +154,9 @@ class GoogleSession {
     }
     async downloadFileById(fileId, fileName) {
         await this.checkOrConnectToDrive()
-        const dest = createWriteStream(`${this._downloadsPath}/${fileName}`)
+        const dest = createWriteStream(`${this.#downloadsPath}/${fileName}`)
 
-        this._drive.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'stream' },
+        this.#drive.files.get({ fileId: fileId, alt: 'media' }, { responseType: 'stream' },
             function (err, res) {
                 if (err) { throw new Error(`Error getting Drive file, error->${err}`) }
                 res.data
@@ -168,7 +178,7 @@ class GoogleSession {
         const params = {
             pageSize: display
         }
-        const res = await this._driveActivity.activity.query({ requestBody: params })
+        const res = await this.#driveActivity.activity.query({ requestBody: params })
         const act = res.data.activities
         if(!act || act.length === 0){
             return null
